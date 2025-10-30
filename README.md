@@ -22,6 +22,39 @@ Zebra DS9908 바코드 스캐너를 위한 Windows 애플리케이션으로, Cor
 - 4GB RAM 이상
 - 500MB 이상 디스크 공간 (이미지 저장용)
 
+## 빠른 시작
+
+### 사용자용 (이미 빌드된 프로그램)
+
+설치 및 사용 방법은 [설치 가이드](docs/INSTALLATION.md)를 참고하세요.
+
+### 개발자용 (소스 코드 빌드)
+
+**🔰 초보자용 빌드 가이드:** [완전 초보자용 빌드 가이드](docs/BUILD_GUIDE_BEGINNER.md) (추천!)
+
+**⚡ 빠른 체크리스트:** [빌드 체크리스트](BUILD_CHECKLIST.md)
+
+**📖 개발자 가이드:** [개발 가이드](docs/DEVELOPMENT.md)
+
+#### 빠른 빌드 (경험자용)
+
+```bash
+# 1. 필수 사항
+- Visual Studio 2022 (.NET desktop development)
+- CoreScanner Driver v3.0+
+
+# 2. 프로젝트 열기
+src/UDIScan.sln
+
+# 3. 빌드
+Ctrl + Shift + B (Release 모드)
+
+# 4. 실행
+Ctrl + F5
+```
+
+---
+
 ## 설치 방법
 
 ### 1. CoreScanner Driver 설치
