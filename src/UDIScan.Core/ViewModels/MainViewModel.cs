@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -12,42 +11,25 @@ using UDIScan.Core.Services;
 namespace UDIScan.Core.ViewModels
 {
     /// <summary>
-    /// Main Window ViewModel
+    /// Main Window ViewModel (이미지 캡처 전용 - 초심플)
     /// </summary>
     public class MainViewModel : BaseViewModel, IDisposable
     {
         private readonly ICoreScannerService _coreScannerService;
-        private readonly IKeyboardSimulator _keyboardSimulator;
         private readonly IImageService _imageService;
-        private readonly ISettingsService _settingsService;
-        private readonly ConcurrentQueue<BarcodeData> _scanQueue;
+        private readonly ConcurrentQueue<CapturedImage> _imageQueue;
+        private readonly CancellationTokenSource _cancellationTokenSource;
 
         private AppSettings _settings;
-        private bool _isImageCaptureEnabled;
         private string _imageSavePath;
         private string _scannerStatus;
         private bool _isConnected;
         private BitmapImage? _lastCapturedImage;
-        private int _totalScansCount;
-        private int _imagesSavedCount;
-        private BarcodeData? _lastScanData;
-
-        public ObservableCollection<BarcodeData> ScanHistory { get; }
+        private int _imagesCapturedCount;
+        private int _queueSize;
+        private bool _isCapturing;
 
         // Properties
-        public bool IsImageCaptureEnabled
-        {
-            get => _isImageCaptureEnabled;
-            set
-            {
-                if (SetProperty(ref _isImageCaptureEnabled, value))
-                {
-                    _settings.IsImageCaptureEnabled = value;
-                    _ = SaveSettingsAsync();
-                }
-            }
-        }
-
         public string ImageSavePath
         {
             get => _imageSavePath;
@@ -56,7 +38,6 @@ namespace UDIScan.Core.ViewModels
                 if (SetProperty(ref _imageSavePath, value))
                 {
                     _settings.ImageSavePath = value;
-                    _ = SaveSettingsAsync();
                 }
             }
         }
@@ -79,199 +60,153 @@ namespace UDIScan.Core.ViewModels
             set => SetProperty(ref _lastCapturedImage, value);
         }
 
-        public int TotalScansCount
+        public int ImagesCapturedCount
         {
-            get => _totalScansCount;
-            set => SetProperty(ref _totalScansCount, value);
+            get => _imagesCapturedCount;
+            set
+            {
+                if (SetProperty(ref _imagesCapturedCount, value))
+                {
+                    OnPropertyChanged(nameof(StatusText));
+                }
+            }
         }
 
-        public int ImagesSavedCount
+        public int QueueSize
         {
-            get => _imagesSavedCount;
-            set => SetProperty(ref _imagesSavedCount, value);
+            get => _queueSize;
+            set
+            {
+                if (SetProperty(ref _queueSize, value))
+                {
+                    OnPropertyChanged(nameof(StatusText));
+                }
+            }
         }
 
-        public string StatusText => $"Ready | Total Scans: {TotalScansCount} | Images Saved: {ImagesSavedCount}";
+        public bool IsCapturing
+        {
+            get => _isCapturing;
+            set => SetProperty(ref _isCapturing, value);
+        }
+
+        public string StatusText => $"Images Captured: {ImagesCapturedCount} | Queue: {QueueSize}";
 
         // Commands
-        public ICommand ToggleImageCaptureCommand { get; }
         public ICommand SelectSavePathCommand { get; }
-        public ICommand ClearHistoryCommand { get; }
+        public ICommand ToggleCaptureCommand { get; }
         public ICommand ReconnectCommand { get; }
 
         public MainViewModel(
             ICoreScannerService coreScannerService,
-            IKeyboardSimulator keyboardSimulator,
-            IImageService imageService,
-            ISettingsService settingsService)
+            IImageService imageService)
         {
             _coreScannerService = coreScannerService;
-            _keyboardSimulator = keyboardSimulator;
             _imageService = imageService;
-            _settingsService = settingsService;
-            _scanQueue = new ConcurrentQueue<BarcodeData>();
-
-            ScanHistory = new ObservableCollection<BarcodeData>();
+            _imageQueue = new ConcurrentQueue<CapturedImage>();
+            _cancellationTokenSource = new CancellationTokenSource();
 
             _settings = new AppSettings();
-            _isImageCaptureEnabled = true;
+            _settings.Validate();
             _imageSavePath = _settings.ImageSavePath;
             _scannerStatus = "Initializing...";
             _isConnected = false;
+            _isCapturing = false;
 
             // Commands 초기화
-            ToggleImageCaptureCommand = new RelayCommand(() =>
-            {
-                IsImageCaptureEnabled = !IsImageCaptureEnabled;
-            });
-
             SelectSavePathCommand = new RelayCommand(SelectSavePath);
-            ClearHistoryCommand = new RelayCommand(ClearHistory);
+            ToggleCaptureCommand = new RelayCommand(ToggleCapture);
             ReconnectCommand = new RelayCommand(async () => await ReconnectAsync());
 
             // 이벤트 핸들러 등록
-            _coreScannerService.BarcodeScanned += OnBarcodeScanned;
             _coreScannerService.ImageCaptured += OnImageCaptured;
             _coreScannerService.ConnectionChanged += OnConnectionChanged;
 
-            // 백그라운드 스캔 처리 시작
-            _ = Task.Run(ProcessScanQueueAsync);
+            // 백그라운드 이미지 저장 처리 시작
+            _ = Task.Run(() => ProcessImageQueueAsync(_cancellationTokenSource.Token));
         }
 
         public async Task InitializeAsync()
         {
             try
             {
-                // 설정 로드
-                _settings = await _settingsService.LoadSettingsAsync();
-                IsImageCaptureEnabled = _settings.IsImageCaptureEnabled;
-                ImageSavePath = _settings.ImageSavePath;
-
-                // CoreScanner 초기화
-                bool initialized = await _coreScannerService.InitializeAsync();
-                if (!initialized)
-                {
-                    ScannerStatus = "Failed to initialize CoreScanner";
-                    return;
-                }
-
-                // 스캐너 연결
+                // CoreScanner 연결
                 bool connected = await _coreScannerService.ConnectAsync();
                 if (!connected)
                 {
-                    ScannerStatus = "No scanner found";
+                    ScannerStatus = _coreScannerService.ScannerInfo;
+                    IsConnected = false;
                     return;
                 }
 
-                // 연결된 스캐너 정보 표시
-                var scanners = _coreScannerService.GetConnectedScanners();
-                if (scanners.Any())
-                {
-                    var scanner = scanners.First();
-                    ScannerStatus = $"Connected: {scanner.DisplayName}";
-                    IsConnected = true;
-                }
+                // 연결 성공
+                ScannerStatus = _coreScannerService.ScannerInfo;
+                IsConnected = true;
             }
             catch (Exception ex)
             {
                 ScannerStatus = $"Error: {ex.Message}";
+                IsConnected = false;
             }
         }
 
-        private void OnBarcodeScanned(object? sender, BarcodeData e)
+        private void OnImageCaptured(object? sender, CapturedImage e)
         {
-            // 큐에 추가 (비동기 처리)
-            _scanQueue.Enqueue(e);
+            // 이미지 큐에 추가 (비동기 저장)
+            _imageQueue.Enqueue(e);
+
+            // UI 카운트 업데이트
+            Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                ImagesCapturedCount++;
+                QueueSize = _imageQueue.Count;
+            });
         }
 
-        private async Task ProcessScanQueueAsync()
+        private async Task ProcessImageQueueAsync(CancellationToken cancellationToken)
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    if (_scanQueue.TryDequeue(out var barcodeData))
+                    if (_imageQueue.TryDequeue(out var capturedImage))
                     {
-                        _lastScanData = barcodeData;
-
-                        // UI 스레드에서 실행
-                        await Application.Current.Dispatcher.InvokeAsync(() =>
-                        {
-                            ScanHistory.Insert(0, barcodeData);
-
-                            // 이력 개수 제한
-                            if (ScanHistory.Count > _settings.MaxScanHistoryCount)
-                            {
-                                ScanHistory.RemoveAt(ScanHistory.Count - 1);
-                            }
-
-                            TotalScansCount++;
-                            OnPropertyChanged(nameof(StatusText));
-                        });
-
-                        // 키보드 입력 시뮬레이션
-                        _keyboardSimulator.TypeText(barcodeData.Barcode);
-
-                        if (_settings.AutoSendEnter)
-                        {
-                            _keyboardSimulator.SendEnter();
-                        }
-
-                        // 이미지 캡처 (활성화된 경우)
-                        if (IsImageCaptureEnabled)
-                        {
-                            var scanners = _coreScannerService.GetConnectedScanners();
-                            if (scanners.Any())
-                            {
-                                await _coreScannerService.CaptureImageAsync(scanners.First().ScannerId);
-                            }
-                        }
-                    }
-
-                    await Task.Delay(10);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"스캔 처리 오류: {ex.Message}");
-                }
-            }
-        }
-
-        private void OnImageCaptured(object? sender, ImageCaptureResult e)
-        {
-            if (!e.Success)
-            {
-                System.Diagnostics.Debug.WriteLine($"이미지 캡처 실패: {e.ErrorMessage}");
-                return;
-            }
-
-            try
-            {
-                // 이미지 저장
-                string barcode = _lastScanData?.Barcode ?? "unknown";
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        string filePath = await _imageService.SaveImageAsync(e.ImageData, barcode, ImageSavePath);
+                        // 이미지 저장
+                        string filePath = await _imageService.SaveImageAsync(capturedImage.ImageData, ImageSavePath);
 
                         // UI 업데이트
                         await Application.Current.Dispatcher.InvokeAsync(() =>
                         {
-                            LastCapturedImage = _imageService.CreateThumbnail(e.ImageData, 300, 300);
-                            ImagesSavedCount++;
-                            OnPropertyChanged(nameof(StatusText));
+                            try
+                            {
+                                // 썸네일 생성 및 표시
+                                LastCapturedImage = _imageService.CreateThumbnail(capturedImage.ImageData, 300, 300);
+                                QueueSize = _imageQueue.Count;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"UI 업데이트 실패: {ex.Message}");
+                            }
                         });
+
+                        System.Diagnostics.Debug.WriteLine($"이미지 저장 완료: {filePath}");
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"이미지 저장 실패: {ex.Message}");
+                        // 큐가 비어있으면 잠시 대기
+                        await Task.Delay(50, cancellationToken);
                     }
-                });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"이미지 처리 오류: {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"이미지 저장 오류: {ex.Message}");
+
+                    // 큐 사이즈 업데이트
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        QueueSize = _imageQueue.Count;
+                    });
+                }
             }
         }
 
@@ -289,7 +224,8 @@ namespace UDIScan.Core.ViewModels
             var dialog = new System.Windows.Forms.FolderBrowserDialog
             {
                 Description = "Select image save folder",
-                SelectedPath = ImageSavePath
+                SelectedPath = ImageSavePath,
+                ShowNewFolderButton = true
             };
 
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -298,9 +234,11 @@ namespace UDIScan.Core.ViewModels
             }
         }
 
-        private void ClearHistory()
+        private void ToggleCapture()
         {
-            ScanHistory.Clear();
+            IsCapturing = !IsCapturing;
+            // Note: DS9908은 항상 트리거를 당기면 이미지를 캡처하도록 설정되어 있습니다.
+            // 이 버튼은 사용자에게 "캡처 활성화" 상태를 표시하는 용도입니다.
         }
 
         private async Task ReconnectAsync()
@@ -311,20 +249,10 @@ namespace UDIScan.Core.ViewModels
             await InitializeAsync();
         }
 
-        private async Task SaveSettingsAsync()
-        {
-            try
-            {
-                await _settingsService.SaveSettingsAsync(_settings);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"설정 저장 실패: {ex.Message}");
-            }
-        }
-
         public void Dispose()
         {
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
             _coreScannerService?.Dispose();
         }
     }

@@ -6,11 +6,11 @@ using System.Windows.Media.Imaging;
 namespace UDIScan.Core.Services
 {
     /// <summary>
-    /// 이미지 처리 서비스
+    /// 이미지 처리 서비스 (이미지 캡처 전용)
     /// </summary>
     public class ImageService : IImageService
     {
-        public async Task<string> SaveImageAsync(byte[] imageData, string barcode, string savePath)
+        public async Task<string> SaveImageAsync(byte[] imageData, string savePath)
         {
             try
             {
@@ -20,14 +20,12 @@ namespace UDIScan.Core.Services
                     Directory.CreateDirectory(savePath);
                 }
 
-                // 파일명 생성: 바코드_타임스탬프.jpg
-                // 파일명에 사용할 수 없는 문자 제거
-                string sanitizedBarcode = SanitizeFileName(barcode);
+                // 파일명 생성: 타임스탬프만 사용 (yyyyMMdd_HHmmss_fff.jpg)
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
-                string fileName = $"{sanitizedBarcode}_{timestamp}.jpg";
+                string fileName = $"{timestamp}.jpg";
                 string fullPath = Path.Combine(savePath, fileName);
 
-                // 비동기로 파일 저장
+                // 비동기로 파일 저장 (UI 블로킹 없음)
                 await File.WriteAllBytesAsync(fullPath, imageData);
 
                 return fullPath;
@@ -74,27 +72,6 @@ namespace UDIScan.Core.Services
             }
 
             return bitmap;
-        }
-
-        /// <summary>
-        /// 파일명에 사용할 수 없는 문자 제거
-        /// </summary>
-        private string SanitizeFileName(string fileName)
-        {
-            if (string.IsNullOrWhiteSpace(fileName))
-                return "barcode";
-
-            char[] invalidChars = Path.GetInvalidFileNameChars();
-            foreach (char c in invalidChars)
-            {
-                fileName = fileName.Replace(c, '_');
-            }
-
-            // 파일명 길이 제한 (최대 50자)
-            if (fileName.Length > 50)
-                fileName = fileName.Substring(0, 50);
-
-            return fileName;
         }
     }
 }

@@ -5,18 +5,17 @@ using UDIScan.Core.Models;
 namespace UDIScan.Core.Services
 {
     /// <summary>
-    /// 이미지 처리 서비스 인터페이스
+    /// 이미지 처리 서비스 인터페이스 (이미지 전용)
     /// </summary>
     public interface IImageService
     {
         /// <summary>
-        /// 이미지 데이터를 파일로 저장
+        /// 이미지 데이터를 파일로 저장 (타임스탬프 파일명)
         /// </summary>
         /// <param name="imageData">이미지 바이트 배열</param>
-        /// <param name="barcode">바코드 값 (파일명에 사용)</param>
         /// <param name="savePath">저장 경로</param>
         /// <returns>저장된 파일 경로</returns>
-        Task<string> SaveImageAsync(byte[] imageData, string barcode, string savePath);
+        Task<string> SaveImageAsync(byte[] imageData, string savePath);
 
         /// <summary>
         /// 이미지 데이터를 BitmapImage로 변환

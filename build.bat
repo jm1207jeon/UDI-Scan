@@ -19,8 +19,6 @@ if exist "src\UDIScan.App\bin" rmdir /s /q "src\UDIScan.App\bin"
 if exist "src\UDIScan.App\obj" rmdir /s /q "src\UDIScan.App\obj"
 if exist "src\UDIScan.Core\bin" rmdir /s /q "src\UDIScan.Core\bin"
 if exist "src\UDIScan.Core\obj" rmdir /s /q "src\UDIScan.Core\obj"
-if exist "src\UDIScan.Native\bin" rmdir /s /q "src\UDIScan.Native\bin"
-if exist "src\UDIScan.Native\obj" rmdir /s /q "src\UDIScan.Native\obj"
 
 echo [2/3] Building solution (Release configuration)...
 cd src

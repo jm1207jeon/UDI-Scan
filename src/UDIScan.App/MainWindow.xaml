@@ -4,11 +4,24 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="UDI-Scan - Zebra DS9908 Barcode Scanner"
-        Height="650" Width="900"
-        MinHeight="600" MinWidth="800"
-        Background="{StaticResource BackgroundColor}"
+        Title="DS9908 Image Capture"
+        Height="600" Width="700"
+        MinHeight="500" MinWidth="600"
+        Background="#F5F5F5"
         WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <!-- Color Resources -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#2196F3"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50"/>
+        <SolidColorBrush x:Key="SurfaceColor" Color="White"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#212121"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#757575"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <!-- Bool to Color Converter (Inline) -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+    </Window.Resources>
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -23,11 +36,22 @@
                 Background="{StaticResource SurfaceColor}"
                 CornerRadius="8"
                 Padding="16"
-                Margin="0,0,0,16">
+                Margin="0,0,0,16"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1">
             <StackPanel Orientation="Horizontal">
-                <Ellipse Width="12" Height="12"
-                         Fill="{Binding IsConnected, Converter={StaticResource BoolToColorConverter}}"
-                         Margin="0,0,8,0"/>
+                <Ellipse Width="12" Height="12" Margin="0,0,8,0">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Fill" Value="Red"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                    <Setter Property="Fill" Value="{StaticResource SuccessColor}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
                 <TextBlock Text="{Binding ScannerStatus}"
                            FontSize="16"
                            FontWeight="SemiBold"
@@ -36,84 +60,38 @@
             </StackPanel>
         </Border>
 
-        <!-- Main Content Area -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1*"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="1*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Main Content: Image Preview -->
+        <Border Grid.Row="1"
+                Background="{StaticResource SurfaceColor}"
+                CornerRadius="8"
+                Padding="16"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <!-- Left Panel: Scan History -->
-            <Border Grid.Column="0"
-                    Background="{StaticResource SurfaceColor}"
-                    CornerRadius="8"
-                    Padding="16">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Text="Last Captured Image"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimary}"
+                           Margin="0,0,0,12"/>
 
-                    <TextBlock Grid.Row="0"
-                               Text="Scan History"
-                               Style="{StaticResource HeaderTextStyle}"/>
-
-                    <ListBox Grid.Row="1"
-                             ItemsSource="{Binding ScanHistory}"
-                             Style="{StaticResource ModernListBoxStyle}"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="4">
-                                    <TextBlock Text="{Binding FormattedScanTime}"
-                                               FontSize="11"
-                                               Foreground="{StaticResource TextSecondary}"/>
-                                    <TextBlock Text="{Binding Barcode}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimary}"/>
-                                    <TextBlock Text="{Binding BarcodeType}"
-                                               FontSize="11"
-                                               Foreground="{StaticResource TextSecondary}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <Button Grid.Row="2"
-                            Content="Clear History"
-                            Style="{StaticResource ModernButtonStyle}"
-                            Command="{Binding ClearHistoryCommand}"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Stretch"/>
-                </Grid>
-            </Border>
-
-            <!-- Right Panel: Image Preview -->
-            <Border Grid.Column="2"
-                    Background="{StaticResource SurfaceColor}"
-                    CornerRadius="8"
-                    Padding="16">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0"
-                               Text="Last Captured Image"
-                               Style="{StaticResource HeaderTextStyle}"/>
-
-                    <Border Grid.Row="1"
-                            BorderBrush="{StaticResource BorderColor}"
-                            BorderThickness="1"
-                            CornerRadius="4">
+                <Border Grid.Row="1"
+                        BorderBrush="{StaticResource BorderColor}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Background="#FAFAFA">
+                    <Grid>
+                        <!-- Image -->
                         <Image Source="{Binding LastCapturedImage}"
                                Stretch="Uniform"
                                HorizontalAlignment="Center"
-                               VerticalAlignment="Center">
+                               VerticalAlignment="Center"
+                               Margin="8">
                             <Image.Style>
                                 <Style TargetType="Image">
                                     <Style.Triggers>
@@ -124,68 +102,82 @@
                                 </Style>
                             </Image.Style>
                         </Image>
-                    </Border>
 
-                    <!-- Placeholder text when no image -->
-                    <TextBlock Grid.Row="1"
-                               Text="No image captured yet"
-                               FontSize="14"
-                               Foreground="{StaticResource TextSecondary}"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding LastCapturedImage}" Value="{x:Null}">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </Grid>
-            </Border>
-        </Grid>
+                        <!-- Placeholder text when no image -->
+                        <TextBlock Text="No image captured yet&#x0a;Pull the trigger to capture"
+                                   FontSize="16"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LastCapturedImage}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
 
         <!-- Settings Panel -->
         <Border Grid.Row="2"
                 Background="{StaticResource SurfaceColor}"
                 CornerRadius="8"
                 Padding="16"
-                Margin="0,16,0,0">
+                Margin="0,16,0,0"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Image Capture Toggle -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                    <TextBlock Text="Image Capture:"
-                               FontSize="14"
-                               Foreground="{StaticResource TextPrimary}"
-                               VerticalAlignment="Center"
-                               Margin="0,0,12,0"/>
-                    <ToggleButton IsChecked="{Binding IsImageCaptureEnabled}"
-                                  Style="{StaticResource ModernToggleButtonStyle}"
-                                  Width="100">
-                        <ToggleButton.Content>
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Disabled"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsImageCaptureEnabled}" Value="True">
-                                                <Setter Property="Text" Value="Enabled"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </ToggleButton.Content>
-                    </ToggleButton>
-                </StackPanel>
+                <!-- Start/Stop Capture Button -->
+                <Button Grid.Row="0"
+                        Command="{Binding ToggleCaptureCommand}"
+                        Height="40"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Margin="0,0,0,12"
+                        Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Content" Value="Start Capture"/>
+                            <Setter Property="Background" Value="{StaticResource SuccessColor}"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="6"
+                                                Padding="16,8">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCapturing}" Value="True">
+                                    <Setter Property="Content" Value="Stop Capture"/>
+                                    <Setter Property="Background" Value="#F44336"/>
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Opacity" Value="0.9"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
 
                 <!-- Save Path -->
                 <Grid Grid.Row="1">
@@ -205,17 +197,44 @@
                     <TextBox Grid.Column="1"
                              Text="{Binding ImageSavePath, Mode=TwoWay}"
                              IsReadOnly="True"
-                             Background="{StaticResource BackgroundColor}"
+                             Background="#FAFAFA"
                              BorderBrush="{StaticResource BorderColor}"
+                             BorderThickness="1"
                              Padding="8"
                              VerticalContentAlignment="Center"
+                             FontSize="13"
                              Margin="0,0,8,0"/>
 
                     <Button Grid.Column="2"
                             Content="Browse..."
-                            Style="{StaticResource ModernButtonStyle}"
                             Command="{Binding SelectSavePathCommand}"
-                            Width="100"/>
+                            Width="100"
+                            Height="32"
+                            Background="{StaticResource PrimaryColor}"
+                            Foreground="White"
+                            FontSize="13"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="4"
+                                        Padding="12,6">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Opacity" Value="0.9"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </Grid>
             </Grid>
         </Border>
@@ -225,10 +244,13 @@
                 Background="{StaticResource SurfaceColor}"
                 CornerRadius="8"
                 Padding="12"
-                Margin="0,16,0,0">
+                Margin="0,16,0,0"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1">
             <TextBlock Text="{Binding StatusText}"
-                       FontSize="12"
-                       Foreground="{StaticResource TextSecondary}"/>
+                       FontSize="13"
+                       FontWeight="Medium"
+                       Foreground="{StaticResource TextPrimary}"/>
         </Border>
     </Grid>
 </Window>
