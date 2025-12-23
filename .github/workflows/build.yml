@@ -1,0 +1,77 @@
+name: Build UDI-Scan
+
+on:
+  push:
+    branches: [ main, master, feature/*, claude/* ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.3
+
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v1
+
+    - name: Restore NuGet packages
+      run: nuget restore src/UDIScan.sln
+
+    - name: Build solution
+      run: msbuild src/UDIScan.sln /p:Configuration=Release /p:Platform="Any CPU" /t:Rebuild /v:minimal
+
+    - name: List build output
+      run: |
+        echo "Build completed. Checking output directory..."
+        dir src\UDIScan.App\bin\Release\net48
+      shell: cmd
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: UDIScan-Release
+        path: src/UDIScan.App/bin/Release/net48/
+        retention-days: 30
+
+    - name: Create Release ZIP
+      run: |
+        cd src/UDIScan.App/bin/Release/net48
+        Compress-Archive -Path * -DestinationPath ../../../../../UDIScan-Release.zip
+      shell: powershell
+
+    - name: Upload Release ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: UDIScan-Release-ZIP
+        path: UDIScan-Release.zip
+        retention-days: 30
+
+  # Create a GitHub Release when a tag is pushed
+  release:
+    runs-on: windows-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: UDIScan-Release-ZIP
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: UDIScan-Release.zip
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,207 +1,306 @@
-# UDI-Scan
+# UDI-Scan - DS9908 Image Capture
 
-Zebra DS9908 바코드 스캐너를 위한 Windows 애플리케이션으로, CoreScanner SDK를 활용하여 바코드 스캔과 이미지 캡처 기능을 제공합니다.
+Zebra DS9908 스캐너를 위한 초고속 이미지 캡처 전용 Windows 애플리케이션
 
-## 주요 기능
+**특징**: 바코드 스캔 없음, 순수 이미지 캡처만 지원 (고속 연속 촬영 최적화)
 
-- **바코드 스캔**: DS9908-SR 스캐너로 바코드 자동 스캔
-- **자동 키보드 입력**: 스캔된 바코드를 Excel, Word, Notepad 등 외부 프로그램에 자동 입력
-- **이미지 캡처**: 바코드 스캔 시 이미지 자동 캡처 및 저장
-- **실시간 프리뷰**: 스캔 이력 및 캡처된 이미지 실시간 표시
-- **설정 관리**: 이미지 저장 경로 및 캡처 활성화 상태 영구 저장
+---
 
-## 시스템 요구사항
+## ✨ 주요 기능
 
-### 필수
-- Windows 10/11 (x64)
-- .NET Framework 4.8 이상
-- Zebra CoreScanner Driver 3.0 이상
-- Zebra DS9908-SR 바코드 스캐너
+- 📸 **고속 이미지 캡처**: 트리거 당기면 즉시 이미지 캡처 (초당 15~20장)
+- ⚡ **비차단 저장**: 비동기 큐 기반 저장으로 UI 지연 없음
+- 🕐 **타임스탬프 파일명**: `yyyyMMdd_HHmmss_fff.jpg` (밀리초 단위)
+- 🖼️ **실시간 프리뷰**: 마지막 캡처 이미지 즉시 표시
+- 💾 **자동 저장**: 사용자 지정 폴더에 자동 저장
+- 🎯 **초심플 UI**: 불필요한 기능 제거, 이미지 캡처에만 집중
 
-### 권장
-- 4GB RAM 이상
-- 500MB 이상 디스크 공간 (이미지 저장용)
+---
 
-## 빠른 시작
+## 🚀 빠른 시작 (3가지 방법)
 
-### 사용자용 (이미 빌드된 프로그램)
+### **방법 1: GitHub Actions 자동 빌드** ⭐⭐⭐⭐⭐ (가장 쉬움!)
 
-설치 및 사용 방법은 [설치 가이드](docs/INSTALLATION.md)를 참고하세요.
+**PC에 아무것도 설치 안 해도 됨!**
 
-### 개발자용 (소스 코드 빌드)
+1. **GitHub에서 빌드된 파일 다운로드**
+   - [Actions 탭](../../actions) 클릭
+   - 최근 성공한 빌드 선택
+   - "Artifacts" → "UDIScan-Release-ZIP" 다운로드
 
-**🔰 초보자용 빌드 가이드:** [완전 초보자용 빌드 가이드](docs/BUILD_GUIDE_BEGINNER.md) (추천!)
+2. **압축 해제 후 실행**
+   - ZIP 파일 압축 해제
+   - `UDIScan.exe` 실행
 
-**⚡ 빠른 체크리스트:** [빌드 체크리스트](BUILD_CHECKLIST.md)
+**상세 가이드**: [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md)
 
-**📖 개발자 가이드:** [개발 가이드](docs/DEVELOPMENT.md)
+---
 
-#### 빠른 빌드 (경험자용)
+### **방법 2: 로컬 빌드 (Build Tools)**
+
+**Build Tools for Visual Studio 2022 필요** (3GB)
 
 ```bash
-# 1. 필수 사항
-- Visual Studio 2022 (.NET desktop development)
-- CoreScanner Driver v3.0+
+# 1. Build Tools 설치
+https://aka.ms/vs/17/release/vs_BuildTools.exe
+# ".NET desktop build tools" 선택
 
-# 2. 프로젝트 열기
-src/UDIScan.sln
+# 2. 빌드
+cd C:\UDI-Scan
+build-manual.bat
 
-# 3. 빌드
-Ctrl + Shift + B (Release 모드)
+# 3. 실행
+run.bat
+```
 
-# 4. 실행
-Ctrl + F5
+**상세 가이드**: [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md)
+
+---
+
+### **방법 3: .NET SDK** (실패 - COM 참조 미지원)
+
+~~.NET SDK만으로는 빌드 불가능~~ (COM 참조 때문에)
+
+---
+
+## 📋 시스템 요구사항
+
+### **필수 (실행 시)**
+- ✅ Windows 10/11 (x64)
+- ✅ .NET Framework 4.8 (Windows 10/11에 기본 설치됨)
+- ✅ **Zebra CoreScanner Driver 3.5+** (필수!)
+- ✅ Zebra DS9908 스캐너 (USB 연결)
+
+### **빌드 시 (GitHub Actions 사용 시 불필요)**
+- Build Tools for Visual Studio 2022
+- 또는 Visual Studio 2022
+
+---
+
+## 🛠️ 사전 준비
+
+### **1. CoreScanner Driver 설치 (필수!)**
+
+```
+https://www.zebra.com/us/en/support-downloads/software/developer-tools/corescanner-driver.html
+```
+
+**중요**: 설치 후 **PC 재부팅** 필수!
+
+### **2. DS9908 스캐너 설정**
+
+스캐너를 **Snapshot Mode**로 설정해야 합니다.
+
+**설정 방법** (Product Reference Guide PDF 사용):
+
+1. Factory Default 바코드 스캔
+2. USB CDC Mode 활성화
+3. **Enable Snapshot Mode** 스캔 (중요!)
+4. Enable Image Capture Illumination
+
+**상세 방법**: [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) Section 4 참고
+
+---
+
+## 💻 사용 방법
+
+### **실행**
+
+```bash
+UDIScan.exe
+```
+
+### **UI 구성**
+
+```
+┌─────────────────────────────────────┐
+│ 🟢 Connected: DS9908-SR (S/N: ...) │  ← 연결 상태
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ Last Captured Image                 │
+│                                     │
+│   [이미지 프리뷰]                     │  ← 마지막 캡처 이미지
+│                                     │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ [Start Capture]  (초록 버튼)         │  ← 캡처 시작/중지
+│                                     │
+│ Save Path: C:\...\DS9908_Images     │  ← 저장 경로
+│ [Browse...]                         │
+└─────────────────────────────────────┘
+
+Images Captured: 0 | Queue: 0         ← 통계
+```
+
+### **기본 사용 흐름**
+
+1. **프로그램 실행**
+2. 🟢 "Connected" 확인
+3. **"Start Capture"** 클릭
+4. **트리거 당기기** → 이미지 캡처!
+5. 지정된 폴더에 자동 저장
+
+### **저장된 파일**
+
+```
+C:\Users\사용자\Documents\DS9908_Images\
+├── 20250122_143052_123.jpg
+├── 20250122_143053_456.jpg
+├── 20250122_143054_789.jpg
+└── ...
+```
+
+파일명 규칙: `yyyyMMdd_HHmmss_fff.jpg` (밀리초 단위)
+
+---
+
+## 📂 프로젝트 구조
+
+```
+UDI-Scan/
+├── .github/
+│   └── workflows/
+│       └── build.yml              # GitHub Actions 자동 빌드
+├── src/
+│   ├── UDIScan.App/              # WPF Application
+│   │   ├── MainWindow.xaml       # UI (초심플)
+│   │   └── MainWindow.xaml.cs
+│   └── UDIScan.Core/             # Core Logic
+│       ├── Services/
+│       │   ├── CoreScannerService.cs  # 이미지 캡처만
+│       │   └── ImageService.cs        # 비동기 저장
+│       ├── ViewModels/
+│       │   └── MainViewModel.cs       # ConcurrentQueue
+│       └── Models/
+│           ├── CapturedImage.cs
+│           └── AppSettings.cs
+├── build-manual.bat              # 빌드 스크립트 (MSBuild 자동 검색)
+├── build-dotnet.bat              # 빌드 스크립트 (.NET SDK) - 작동 안 함
+├── run.bat                       # 실행 스크립트
+├── GITHUB_ACTIONS_GUIDE.md       # GitHub Actions 사용법 ⭐
+├── EXECUTION_GUIDE.md            # 실행 가이드
+└── README.md                     # 이 파일
 ```
 
 ---
 
-## 설치 방법
-
-### 1. CoreScanner Driver 설치
-
-1. [Zebra 공식 사이트](https://www.zebra.com/us/en/support-downloads/software/developer-tools/corescanner-driver.html)에서 CoreScanner Driver 다운로드
-2. 다운로드한 설치 파일 실행
-3. 설치 마법사 지시에 따라 설치 완료
-
-### 2. UDI-Scan 애플리케이션 설치
-
-**방법 A: Installer 사용 (권장)**
-1. `UDIScan-Setup.exe` 다운로드
-2. 설치 파일 실행
-3. 설치 경로 선택 후 설치 완료
-
-**방법 B: Portable 버전**
-1. `UDIScan-Portable.zip` 다운로드
-2. 원하는 위치에 압축 해제
-3. `UDIScan.exe` 실행
-
-### 3. 스캐너 설정
-
-DS9908 스캐너를 PC에 USB로 연결한 후, 아래 바코드를 스캔하여 CoreScanner 모드로 설정합니다:
-
-**USB CDC (Virtual COM) 모드 활성화**
-- Product Reference Guide 참조하여 해당 바코드 스캔
-
-## 사용 방법
-
-### 기본 사용법
-
-1. **애플리케이션 실행**
-   - `UDIScan.exe` 실행
-   - 스캐너가 자동으로 연결됨 (상단에 "Scanner Connected" 표시)
-
-2. **바코드 스캔**
-   - Excel, Word, Notepad 등 원하는 프로그램 열기
-   - 입력하고 싶은 위치에 커서 위치
-   - DS9908으로 바코드 스캔
-   - 스캔된 데이터가 자동으로 입력됨
-
-3. **이미지 캡처**
-   - 기본적으로 이미지 캡처 활성화 상태
-   - 비활성화하려면 "Image Capture: Enabled" 버튼 클릭
-   - 캡처된 이미지는 설정된 경로에 자동 저장
-   - 파일명 형식: `바코드데이터_yyyyMMddHHmmss.jpg`
-
-4. **저장 경로 변경**
-   - "Save Path" 옆 "Browse" 버튼 클릭
-   - 원하는 폴더 선택
-   - 설정은 자동으로 저장되며 재시작 후에도 유지됨
-
-### UI 구성
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  [●] Scanner Connected: DS9908-SR00004ZZWW                  │
-├─────────────────────────────────────────────────────────────┤
-│  [Scan History]                    [Last Captured Image]    │
-│                                                              │
-│  Image Capture: [Enabled/Disabled]                          │
-│  Save Path: C:\...\BarcodeImages  [Browse]                  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 기술 스택
+## 🔧 기술 스택
 
 - **언어**: C# 10.0
 - **프레임워크**: .NET Framework 4.8
 - **UI**: WPF (Windows Presentation Foundation)
 - **SDK**: Zebra CoreScanner Driver COM Interop
-- **패턴**: MVVM (Model-View-ViewModel)
+- **패턴**: MVVM + ConcurrentQueue
+- **비동기 처리**: async/await + Task.Run
 
-## 프로젝트 구조
+---
 
-```
-UDI-Scan/
-├── src/
-│   ├── UDIScan.App/          # WPF Application
-│   ├── UDIScan.Core/         # Business Logic
-│   └── UDIScan.Native/       # Win32 API Interop
-├── docs/                     # Documentation
-├── installer/                # Deployment package
-└── README.md
-```
+## 🎯 성능 특징
 
-자세한 아키텍처는 [PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md) 참조
+- **고속 캡처**: 초당 15~20장 연속 촬영 가능
+- **비차단 UI**: ConcurrentQueue로 이미지 저장 중에도 캡처 가능
+- **메모리 효율**: 큐 크기 자동 관리
+- **안정성**: 에러 발생 시에도 다음 캡처 계속 진행
 
-## 문제 해결
+---
 
-### 스캐너가 연결되지 않을 때
+## ❓ 문제 해결
 
-1. CoreScanner Driver가 설치되었는지 확인
-2. 장치 관리자에서 DS9908 인식 확인
-3. USB 케이블 재연결
-4. 애플리케이션 재시작
+### **"No scanner found" 에러**
 
-### 키보드 입력이 안 될 때
+1. CoreScanner Driver 설치 확인
+2. PC 재부팅
+3. USB 재연결
+4. 장치 관리자에서 "Symbol USB CDC Device" 확인
 
-1. 입력하려는 애플리케이션에 포커스가 있는지 확인
-2. 관리자 권한으로 실행된 프로그램에는 입력 불가
-3. 스캔 후 약간의 지연 시간 필요
+### **트리거 당겨도 이미지 안 찍힘**
 
-### 이미지가 저장되지 않을 때
+1. "Start Capture" 버튼 클릭 확인
+2. 스캐너가 Snapshot Mode인지 확인
+3. Product Reference Guide에서 "Enable Snapshot Mode" 바코드 재스캔
 
-1. 저장 경로가 유효한지 확인
-2. 폴더 쓰기 권한 확인
-3. 디스크 용량 확인
-4. "Image Capture" 버튼이 활성화되어 있는지 확인
+### **빌드 에러**
 
-## 개발
+1. GitHub Actions 사용 (빌드 불필요)
+2. 또는 Build Tools 설치
+3. CoreScanner Driver 설치 및 PC 재부팅
 
-### 빌드 방법
+**더 많은 문제 해결**: [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) Section 7
 
-```bash
-# 솔루션 빌드
-cd src
-dotnet build UDIScan.sln
+---
 
-# 또는 Visual Studio에서 열기
-start UDIScan.sln
-```
+## 📚 문서
 
-### 개발 환경
+| 파일 | 설명 |
+|------|------|
+| [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md) | GitHub Actions 자동 빌드 가이드 ⭐ |
+| [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) | 완전 실행 가이드 (스캐너 설정 포함) |
+| [QUICKSTART.md](QUICKSTART.md) | 5분 빠른 시작 |
+| [DOTNET_SDK_INSTALL.md](DOTNET_SDK_INSTALL.md) | .NET SDK 설치 (작동 안 함) |
 
-- Visual Studio 2022
-- .NET Framework 4.8 SDK
-- CoreScanner Driver 설치 필요
+---
 
-## 라이선스
+## 🚀 GitHub Actions 자동 빌드
+
+**장점:**
+- ✅ PC에 Build Tools 설치 불필요
+- ✅ 코드 푸시 시 자동 빌드
+- ✅ 실행 파일만 다운로드
+
+**사용법:**
+
+1. 코드를 GitHub에 푸시
+2. Actions 탭에서 빌드 완료 대기 (2~3분)
+3. Artifacts 다운로드
+4. 압축 해제 후 실행
+
+**상세**: [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md)
+
+---
+
+## 🔄 버전 히스토리
+
+### v1.0.0-image-only (2025-01-22)
+
+**이미지 캡처 전용 버전**
+- ✅ 바코드 스캔 기능 완전 제거
+- ✅ 고속 이미지 캡처 (초당 15~20장)
+- ✅ ConcurrentQueue 기반 비동기 저장
+- ✅ 타임스탬프 파일명 (밀리초 단위)
+- ✅ GitHub Actions 자동 빌드 지원
+- ✅ 초심플 UI
+
+**제거된 기능:**
+- ❌ 바코드 스캔
+- ❌ 키보드 시뮬레이션
+- ❌ 스캔 히스토리
+
+---
+
+## 📞 지원
+
+**문제 발생 시:**
+1. [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) 문제 해결 섹션 확인
+2. GitHub Issues 등록
+
+---
+
+## 📖 참고 자료
+
+- [Zebra CoreScanner SDK](https://techdocs.zebra.com/dcs/scanners/sdk-windows/)
+- [DS9908 Product Guide](https://www.zebra.com/us/en/support-downloads/scanners/general-purpose-scanners/ds9908.html)
+- [CoreScanner Driver](https://www.zebra.com/us/en/support-downloads/software/developer-tools/corescanner-driver.html)
+
+---
+
+## 📄 라이선스
 
 MIT License
 
-## 문의
+---
 
-이슈가 있을 경우 GitHub Issues에 등록해주세요.
+**DS9908 이미지 캡처를 즐겁게!** 📸✨
 
-## 참고 자료
-
-- [Zebra CoreScanner SDK Documentation](https://techdocs.zebra.com/dcs/scanners/sdk-windows/)
-- [DS9908 Product Reference Guide](https://www.zebra.com/us/en/support-downloads/scanners/general-purpose-scanners/ds9908.html)
-- [Project Architecture](PROJECT_ARCHITECTURE.md)
-
-## 버전 히스토리
-
-### v1.0.0 (Initial Release)
-- 바코드 스캔 및 자동 키보드 입력
-- 이미지 캡처 및 저장
-- 설정 관리 (저장 경로, 캡처 활성화)
-- 실시간 UI 업데이트
+**추천 시작**: [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md) 읽고 자동 빌드로 시작하세요!
