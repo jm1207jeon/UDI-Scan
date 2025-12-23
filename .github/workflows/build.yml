@@ -21,51 +21,68 @@ jobs:
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v1
 
-    - name: Download and Install CoreScanner Driver
+    - name: Generate CoreScanner Interop DLL
       run: |
-        Write-Host "Downloading CoreScanner Driver..."
+        Write-Host "===== Generating CoreScanner Interop DLL ====="
 
-        # Download CoreScanner Driver from Zebra
-        # Note: This is a direct download link for CoreScanner Driver SDK
-        $url = "https://www.zebra.com/content/dam/zebra_new_ia/en-us/software/developer-tools/corescanner-driver/CoreScannerSDK_3.08.00.zip"
-        $output = "$env:TEMP\CoreScannerSDK.zip"
-        $extractPath = "$env:TEMP\CoreScannerSDK"
+        # Create lib directory
+        New-Item -ItemType Directory -Force -Path "lib" | Out-Null
 
+        # Download CoreScanner SDK
+        $sdkUrl = "https://www.zebra.com/content/dam/zebra_new_ia/en-us/software/developer-tools/corescanner-driver/CoreScannerSDK_3.08.00.zip"
+        $sdkZip = "$env:TEMP\CoreScannerSDK.zip"
+        $sdkExtract = "$env:TEMP\CoreScannerSDK"
+
+        Write-Host "Downloading CoreScanner SDK..."
         try {
-          # Download SDK
-          Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing -ErrorAction Stop
+          Invoke-WebRequest -Uri $sdkUrl -OutFile $sdkZip -UseBasicParsing -TimeoutSec 120
           Write-Host "Downloaded CoreScanner SDK"
 
-          # Extract
-          Expand-Archive -Path $output -DestinationPath $extractPath -Force
-          Write-Host "Extracted CoreScanner SDK"
+          # Extract SDK
+          Expand-Archive -Path $sdkZip -DestinationPath $sdkExtract -Force
+          Write-Host "Extracted SDK"
 
-          # Find and register COM DLL
-          $comDll = Get-ChildItem -Path $extractPath -Recurse -Filter "CoreScanner.dll" | Select-Object -First 1
+          # Find TLB or DLL file
+          $tlbFile = Get-ChildItem -Path $sdkExtract -Recurse -Filter "CoreScanner.tlb" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $dllFile = Get-ChildItem -Path $sdkExtract -Recurse -Filter "CoreScanner.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
 
-          if ($comDll) {
-            Write-Host "Found CoreScanner.dll at: $($comDll.FullName)"
+          if ($tlbFile) {
+            Write-Host "Found CoreScanner.tlb at: $($tlbFile.FullName)"
 
-            # Register COM DLL
-            $regsvr32 = "C:\Windows\System32\regsvr32.exe"
-            Start-Process -FilePath $regsvr32 -ArgumentList "/s", "`"$($comDll.FullName)`"" -Wait -NoNewWindow
-            Write-Host "Registered CoreScanner COM library"
-          } else {
-            Write-Host "CoreScanner.dll not found in SDK package"
+            # Use tlbimp.exe to generate Interop DLL
+            $tlbimp = Get-ChildItem -Path "C:\Program Files (x86)\Microsoft SDKs" -Recurse -Filter "TlbImp.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 
-            # Try alternative: register TLB file instead
-            $tlbFile = Get-ChildItem -Path $extractPath -Recurse -Filter "CoreScanner.tlb" | Select-Object -First 1
-            if ($tlbFile) {
-              Write-Host "Found CoreScanner.tlb at: $($tlbFile.FullName)"
-              regtlib "$($tlbFile.FullName)"
+            if ($tlbimp) {
+              Write-Host "Using TlbImp at: $($tlbimp.FullName)"
+
+              # Generate Interop DLL
+              $interopDll = "$PWD\lib\Interop.CoreScanner.dll"
+              & $tlbimp.FullName $tlbFile.FullName /out:$interopDll /namespace:CoreScanner /silent
+
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "Successfully generated Interop.CoreScanner.dll"
+              } else {
+                Write-Host "TlbImp failed with exit code: $LASTEXITCODE"
+              }
+            } else {
+              Write-Host "TlbImp.exe not found!"
             }
+          } else {
+            Write-Host "CoreScanner.tlb not found in SDK!"
           }
         } catch {
-          Write-Host "Warning: Failed to download/install CoreScanner Driver: $_"
-          Write-Host "Build may fail if COM reference cannot be resolved"
+          Write-Host "ERROR: $_"
+        }
+
+        # Verify Interop DLL was created
+        if (Test-Path "lib\Interop.CoreScanner.dll") {
+          Write-Host "SUCCESS: Interop.CoreScanner.dll created"
+          Get-Item "lib\Interop.CoreScanner.dll"
+        } else {
+          Write-Host "FATAL: Failed to create Interop.CoreScanner.dll"
+          exit 1
         }
       shell: powershell
-      continue-on-error: true
 
     - name: Restore NuGet packages
       run: nuget restore src/UDIScan.sln

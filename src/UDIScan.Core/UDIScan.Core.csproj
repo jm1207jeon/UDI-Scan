@@ -12,8 +12,16 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
 
+  <!-- CoreScanner Interop Reference -->
   <ItemGroup>
-    <COMReference Include="CoreScanner">
+    <!-- Try to use pre-built Interop DLL if available -->
+    <Reference Include="Interop.CoreScanner" Condition="Exists('..\..\lib\Interop.CoreScanner.dll')">
+      <HintPath>..\..\lib\Interop.CoreScanner.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+    </Reference>
+
+    <!-- Fallback to COM Reference if Interop DLL not found -->
+    <COMReference Include="CoreScanner" Condition="!Exists('..\..\lib\Interop.CoreScanner.dll')">
       <Guid>d106c043-6e5f-4987-9e6e-f5796d398f23</Guid>
       <VersionMajor>1</VersionMajor>
       <VersionMinor>0</VersionMinor>
