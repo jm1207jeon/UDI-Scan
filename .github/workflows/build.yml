@@ -21,26 +21,80 @@ jobs:
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v1
 
+    - name: Download and Install CoreScanner Driver
+      run: |
+        Write-Host "Downloading CoreScanner Driver..."
+
+        # Download CoreScanner Driver from Zebra
+        # Note: This is a direct download link for CoreScanner Driver SDK
+        $url = "https://www.zebra.com/content/dam/zebra_new_ia/en-us/software/developer-tools/corescanner-driver/CoreScannerSDK_3.08.00.zip"
+        $output = "$env:TEMP\CoreScannerSDK.zip"
+        $extractPath = "$env:TEMP\CoreScannerSDK"
+
+        try {
+          # Download SDK
+          Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing -ErrorAction Stop
+          Write-Host "Downloaded CoreScanner SDK"
+
+          # Extract
+          Expand-Archive -Path $output -DestinationPath $extractPath -Force
+          Write-Host "Extracted CoreScanner SDK"
+
+          # Find and register COM DLL
+          $comDll = Get-ChildItem -Path $extractPath -Recurse -Filter "CoreScanner.dll" | Select-Object -First 1
+
+          if ($comDll) {
+            Write-Host "Found CoreScanner.dll at: $($comDll.FullName)"
+
+            # Register COM DLL
+            $regsvr32 = "C:\Windows\System32\regsvr32.exe"
+            Start-Process -FilePath $regsvr32 -ArgumentList "/s", "`"$($comDll.FullName)`"" -Wait -NoNewWindow
+            Write-Host "Registered CoreScanner COM library"
+          } else {
+            Write-Host "CoreScanner.dll not found in SDK package"
+
+            # Try alternative: register TLB file instead
+            $tlbFile = Get-ChildItem -Path $extractPath -Recurse -Filter "CoreScanner.tlb" | Select-Object -First 1
+            if ($tlbFile) {
+              Write-Host "Found CoreScanner.tlb at: $($tlbFile.FullName)"
+              regtlib "$($tlbFile.FullName)"
+            }
+          }
+        } catch {
+          Write-Host "Warning: Failed to download/install CoreScanner Driver: $_"
+          Write-Host "Build may fail if COM reference cannot be resolved"
+        }
+      shell: powershell
+      continue-on-error: true
+
     - name: Restore NuGet packages
       run: nuget restore src/UDIScan.sln
 
     - name: Build solution
       run: msbuild src/UDIScan.sln /p:Configuration=Release /p:Platform="Any CPU" /t:Rebuild /v:minimal
+      continue-on-error: false
 
     - name: List build output
       run: |
         echo "Build completed. Checking output directory..."
-        dir src\UDIScan.App\bin\Release\net48
-      shell: cmd
+        if (Test-Path "src\UDIScan.App\bin\Release\net48") {
+          dir src\UDIScan.App\bin\Release\net48
+        } else {
+          echo "Build output directory not found!"
+          exit 1
+        }
+      shell: powershell
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: UDIScan-Release
         path: src/UDIScan.App/bin/Release/net48/
         retention-days: 30
 
     - name: Create Release ZIP
+      if: success()
       run: |
         cd src/UDIScan.App/bin/Release/net48
         Compress-Archive -Path * -DestinationPath ../../../../../UDIScan-Release.zip
@@ -48,6 +102,7 @@ jobs:
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: UDIScan-Release-ZIP
         path: UDIScan-Release.zip
